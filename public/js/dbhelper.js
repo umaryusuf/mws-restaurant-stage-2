@@ -1,14 +1,41 @@
-/**
- * use indexedDB to create objectStore
- */
-const dbPromise = idb.open('restaurants-reviews', 1, upgradeDb => {
-  switch(upgradeDb.oldVersion) {
-    case 0:
-      upgradeDb.createObjectStore('restaurants', {
-        keyPath: 'id'
-      });
+const db = (() => {
+  const dbPromise = idb.open('restaurants-reviews', 1, upgradeDb => {
+    switch(upgradeDb.oldVersion) {
+      case 0:
+        upgradeDb.createObjectStore('restaurants', {
+          keyPath: 'id'
+        });
+    }
+  });
+  // fetch a restaurant by ID
+  fetchById = id => {
+    return dbPromise.then(db => {
+      const tx = db.transaction('restaurants');
+      const restaurantStore = tx.objectStore('restaurants');
+
+      return restaurantStore.get(parseInt(id));
+    })
+    .then(restaurant => restaurant)
+    .catch(error => console.log('Unable to fetch restaurant', error))
+  };
+  // store a restaurant object
+  storebyId = restaurant => {
+    dbPromise.then(db => {
+      const tx = db.transaction('restaurants', 'readwrite');
+      const store = tx.objectStore('restaurants');
+
+      store.put(restaurant);
+      return tx.complete;
+    })
+    .then(() => console.log('restaurant added'))
+    .catch(error => console.log('unable to store restaurant', error));
+  };
+
+  return {
+    storebyId: (storebyId),
+    fetchById: (fetchById)
   }
-});
+})();
 
 /**
  * Common database helper functions.
@@ -43,12 +70,7 @@ class DBHelper {
    */
   static fetchRestaurantById(id, callback) {
     // check if restaurant exist inside our indexedDB
-    dbPromise.then(db => {
-      const tx = db.transaction('restaurants');
-      const restaurantStore = tx.objectStore('restaurants');
-
-      return restaurantStore.get(parseInt(id));
-    })
+    db.fetchById(id)
     .then(restaurant => {
       // check if restaurant exist
       if(restaurant) {
@@ -63,35 +85,12 @@ class DBHelper {
           // got the restaurant
           callback(null, restaurant);
           // save restaurant to indexedDB
-          dbPromise.then(db => {
-            const tx = db.transaction('restaurants', 'readwrite');
-            const store = tx.objectStore('restaurants');
-
-            store.put(restaurant);
-            return tx.complete;
-          })
-          .then(() => console.log('restaurant added'))
-          .catch(error => console.log('unable to store restaurant', error));
+          db.storebyId(restaurant);
         })
         .catch(error => console.log(error));
       }
     })
     .catch(error => console.log(error));
-    /*
-    // fetch all restaurants with proper error handling.
-    DBHelper.fetchRestaurants((error, restaurants) => {
-      if (error) {
-        callback(error, null);
-      } else {
-        const restaurant = restaurants.find(r => r.id == id);
-        if (restaurant) { // Got the restaurant
-          callback(null, restaurant);
-        } else { // Restaurant does not exist in the database
-          callback('Restaurant does not exist', null);
-        }
-      }
-    });
-    */
   }
 
   /**
@@ -198,6 +197,13 @@ class DBHelper {
   }
 
   /**
+   * restaurant image srcset URL
+   */
+  static imgSrcSetRestaurant(restaurant) {
+    return (`/img/${restaurant.id}_large.jpg 1200w, /img/${restaurant.id}_medium.jpg 800w, /img/${restaurant.id}_small.jpg 400w`);
+  }
+
+  /**
    * Map marker for a restaurant.
    */
    static mapMarkerForRestaurant(restaurant, map) {
@@ -210,16 +216,5 @@ class DBHelper {
       marker.addTo(newMap);
     return marker;
   }
-  /* static mapMarkerForRestaurant(restaurant, map) {
-    const marker = new google.maps.Marker({
-      position: restaurant.latlng,
-      title: restaurant.name,
-      url: DBHelper.urlForRestaurant(restaurant),
-      map: map,
-      animation: google.maps.Animation.DROP}
-    );
-    return marker;
-  } */
-
 }
 

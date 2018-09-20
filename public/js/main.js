@@ -18,13 +18,14 @@ if ('serviceWorker' in navigator) {
 let restaurants,
   neighborhoods,
   cuisines;
-var newMap
+var newMap;
 var markers = [];
 
 /**
  * Fetch neighborhoods and cuisines as soon as the page is loaded.
  */
 document.addEventListener('DOMContentLoaded', (event) => {
+  window.innerWidth = window.outerWidth
   initMap(); // added
   fetchNeighborhoods();
   fetchCuisines();
@@ -166,6 +167,7 @@ createRestaurantHTML = (restaurant) => {
   const image = document.createElement('img');
   image.className = 'restaurant-img';
   image.src = DBHelper.imageUrlForRestaurant(restaurant);
+  image.srcset = DBHelper.imgSrcSetRestaurant(restaurant);
   // add alt attribute to image tag
   image.alt = `image of ${restaurant.name} Restaurant`;
   li.append(image);
